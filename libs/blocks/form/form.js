@@ -217,6 +217,30 @@ function createButton({ type, label }, thankYou) {
     });
   }
 
+  function setupForm() {
+    const form = document.querySelector('#your-form-id');
+  
+    // Create and append "Get Code" button
+    const getCodeButton = createButton({ type: 'get-code', label: 'Get Code' }, form);
+    form.appendChild(getCodeButton);
+  
+    // Create and append "Verify Code" button
+    const verifyCodeButton = createButton({ type: 'verify-code', label: 'Verify Code' }, form);
+    form.appendChild(verifyCodeButton);
+  
+    // Add the submission button functionality
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await submitForm(form);
+      });
+    }
+  }
+  
+  // Initialize the form setup
+  document.addEventListener('DOMContentLoaded', setupForm);
+
   if (type === 'clear') {
     button.classList.add('outline');
     button.addEventListener('click', (e) => {
