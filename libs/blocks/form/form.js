@@ -74,26 +74,6 @@ async function submitForm(form) {
   }
 }
 
-
-// function loadTurnstile() {
-//   const script = document.createElement('script');
-//   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-//   script.async = true;
-//   script.onload = () => {
-//     turnstile.render('#captcha-container', {
-//       sitekey: '0x4AAAAAAA6uqp_nGspHkBq3',
-//       callback: (token) => {
-//         console.log('CAPTCHA Token received:', token);
-//         document.querySelector('#cf-turnstile-response').value = token;
-//       }
-//     });
-//   };
-//   document.body.appendChild(script);
-// }
-
-// document.addEventListener('DOMContentLoaded', loadTurnstile);
-
-
 function clearForm(form) {
   [...form.elements].forEach((fe) => {
     if (fe.type.match(/(?:checkbox|radio)/)) {
@@ -104,40 +84,92 @@ function clearForm(form) {
   });
 }
 
-function createButton({ type, label }, thankYou) {
-  const button = createTag('button', { class: 'button' }, label);
-  if (type === 'submit') {
+function createButton({ type, label }) {
+  const button = createTag('button', { class: 'button', type }, label);
+
+  if (type === 'get-code') {
     button.addEventListener('click', async (event) => {
+      event.preventDefault();
       const form = button.closest('form');
-      if (form.checkValidity()) {
-        event.preventDefault();
-        button.setAttribute('disabled', '');
-        const submission = await submitForm(form);
-        button.removeAttribute('disabled');
-        if (!submission) return;
-        clearForm(form);
-        const handleThankYou = thankYou.querySelector('a') ? thankYou.querySelector('a').href : thankYou.innerHTML;
-        if (!thankYou.innerHTML.includes('href')) {
-          const thanksText = createTag('h4', { class: 'thank-you' }, handleThankYou);
-          form.append(thanksText);
-          setTimeout(() => thanksText.remove(), 2000);
-          /* c8 ignore next 3 */
-        } else {
-          window.location.href = handleThankYou;
-        }
+      const emailInput = form.querySelector('#email');
+
+      if (!emailInput.value) {
+        alert("Please enter your email to receive a verification code.");
+        return;
+      }
+
+      button.setAttribute('disabled', '');
+      const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.value }),
+      });
+      button.removeAttribute('disabled');
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        alert("Verification code sent to your email.");
+      } else {
+        alert("Failed to send verification code. Please try again.");
       }
     });
   }
-  if (type === 'clear') {
-    button.classList.add('outline');
-    button.addEventListener('click', (e) => {
-      e.preventDefault();
+
+  if (type === 'verify-code') {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
       const form = button.closest('form');
-      clearForm(form);
+      const emailInput = form.querySelector('#email');
+      const codeInput = form.querySelector('#verificationCode');
+
+      if (!emailInput.value || !codeInput.value) {
+        alert("Please enter your email and the verification code.");
+        return;
+      }
+
+      button.setAttribute('disabled', '');
+      const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.value, code: codeInput.value }),
+      });
+      button.removeAttribute('disabled');
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        alert("Email verified! You can now submit the form.");
+        form.querySelector('[type="submit"]').removeAttribute('disabled');
+      } else {
+        alert("Invalid verification code. Please try again.");
+      }
     });
   }
+
   return button;
 }
+
+function createInput({ type, field, placeholder }) {
+  return createTag('input', { type, id: field, placeholder });
+}
+
+function setupForm() {
+  const form = document.querySelector('form');
+
+  // Add Get Code Button
+  const getCodeButton = createButton({ type: 'get-code', label: 'Get Code' });
+  form.appendChild(getCodeButton);
+
+  // Add Verify Code Button
+  const verifyCodeButton = createButton({ type: 'verify-code', label: 'Verify Code' });
+  form.appendChild(verifyCodeButton);
+
+  // Disable Submit Button by default
+  const submitButton = form.querySelector('[type="submit"]');
+  submitButton.setAttribute('disabled', '');
+}
+
+// Initialize form setup
+document.addEventListener('DOMContentLoaded', setupForm);
 
 function createHeading({ label }, el) {
   return createTag(el, {}, label);
