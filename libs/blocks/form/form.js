@@ -154,7 +154,7 @@ function clearForm(form) {
 function createButton({ type, label }, thankYou) {
   const button = createTag('button', { class: 'button' }, label);
 
-  if (type === 'get-code') {
+  if (type === 'getcode') {
     button.addEventListener('click', async (event) => {
       event.preventDefault();
       const form = button.closest('form');
@@ -171,7 +171,7 @@ function createButton({ type, label }, thankYou) {
     });
   }
 
-  if (type === 'verify-code') {
+  if (type === 'verifycode') {
     button.addEventListener('click', async (event) => {
       event.preventDefault();
       const form = button.closest('form');
