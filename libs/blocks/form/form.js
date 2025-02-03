@@ -41,71 +41,24 @@ function constructPayload(form) {
   return payload;
 }
 
-// async function submitForm(form) {
-//   const payload = constructPayload(form); 
-//   payload.timestamp = new Date().toISOString(); 
-
-//   try {
-//     const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev', { 
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify(payload), 
-//     });
-
-//     if (!response.ok) {
-//       throw new Error(`Error: ${response.statusText}`);
-//     }
-
-//     // Log success message to the console
-//     console.log('POST request successful:', {
-//       status: response.status,
-//       statusText: response.statusText,
-//       payload,
-//     });
-
-//     const result = await response.json();
-//     console.log('Response from server:', result); // Log the server response
-//     return result; 
-//   } catch (error) {
-//     console.error('Form submission failed:', error);
-//     return { status: 'error', message: error.message };
-//   }
-// }
-
 async function submitForm(form) {
   const payload = constructPayload(form); 
   payload.timestamp = new Date().toISOString(); 
-
-  // Check if the email has been verified
-  const emailInput = form.querySelector('#email');
-  if (!emailInput || !emailInput.dataset.verified) {
-    alert("Please verify your email before submitting.");
-    return;
-  }
-
-  // Include the Cloudflare Turnstile token (if applicable)
-  const captchaToken = form.querySelector('#cf-turnstile')?.value;
-  if (!captchaToken) {
-    alert("Please complete the CAPTCHA verification.");
-    return;
-  }
 
   try {
     const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev', { 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`, // Ensure API Key is securely set
       },
-      body: JSON.stringify({ ...payload, captchaToken }), // Include CAPTCHA token
+      body: JSON.stringify(payload), 
     });
 
     if (!response.ok) {
       throw new Error(`Error: ${response.statusText}`);
     }
 
+    // Log success message to the console
     console.log('POST request successful:', {
       status: response.status,
       statusText: response.statusText,
@@ -113,7 +66,7 @@ async function submitForm(form) {
     });
 
     const result = await response.json();
-    console.log('Response from server:', result);
+    console.log('Response from server:', result); // Log the server response
     return result; 
   } catch (error) {
     console.error('Form submission failed:', error);
@@ -122,23 +75,23 @@ async function submitForm(form) {
 }
 
 
-function loadTurnstile() {
-  const script = document.createElement('script');
-  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-  script.async = true;
-  script.onload = () => {
-    turnstile.render('#captcha-container', {
-      sitekey: '0x4AAAAAAA6uqp_nGspHkBq3',
-      callback: (token) => {
-        console.log('CAPTCHA Token received:', token);
-        document.querySelector('#cf-turnstile-response').value = token;
-      }
-    });
-  };
-  document.body.appendChild(script);
-}
+// function loadTurnstile() {
+//   const script = document.createElement('script');
+//   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+//   script.async = true;
+//   script.onload = () => {
+//     turnstile.render('#captcha-container', {
+//       sitekey: '0x4AAAAAAA6uqp_nGspHkBq3',
+//       callback: (token) => {
+//         console.log('CAPTCHA Token received:', token);
+//         document.querySelector('#cf-turnstile-response').value = token;
+//       }
+//     });
+//   };
+//   document.body.appendChild(script);
+// }
 
-document.addEventListener('DOMContentLoaded', loadTurnstile);
+// document.addEventListener('DOMContentLoaded', loadTurnstile);
 
 
 function clearForm(form) {
@@ -153,48 +106,6 @@ function clearForm(form) {
 
 function createButton({ type, label }, thankYou) {
   const button = createTag('button', { class: 'button' }, label);
-
-  if (type === 'getcode') {
-    button.addEventListener('click', async (event) => {
-      event.preventDefault();
-      const form = button.closest('form');
-      const emailInput = form.querySelector('#email');
-
-      if (!emailInput.value) {
-        alert("Please enter your email to receive a verification code.");
-        return;
-      }
-
-      button.setAttribute('disabled', '');
-      await requestVerificationCode(emailInput.value);
-      button.removeAttribute('disabled');
-    });
-  }
-
-  if (type === 'verifycode') {
-    button.addEventListener('click', async (event) => {
-      event.preventDefault();
-      const form = button.closest('form');
-      const emailInput = form.querySelector('#email');
-      const codeInput = form.querySelector('#verificationCode');
-      const captchaToken = form.querySelector('#cf-turnstile')?.value; // Cloudflare CAPTCHA
-
-      if (!emailInput.value || !codeInput.value) {
-        alert("Please enter your email and verification code.");
-        return;
-      }
-
-      button.setAttribute('disabled', '');
-      const verified = await verifyCode(emailInput.value, codeInput.value, captchaToken);
-      button.removeAttribute('disabled');
-
-      if (verified) {
-        alert("Email verified! You can now submit the form.");
-        form.querySelector('[type="submit"]').removeAttribute('disabled'); // Enable submit button
-      }
-    });
-  }
-
   if (type === 'submit') {
     button.addEventListener('click', async (event) => {
       const form = button.closest('form');
@@ -210,13 +121,13 @@ function createButton({ type, label }, thankYou) {
           const thanksText = createTag('h4', { class: 'thank-you' }, handleThankYou);
           form.append(thanksText);
           setTimeout(() => thanksText.remove(), 2000);
+          /* c8 ignore next 3 */
         } else {
           window.location.href = handleThankYou;
         }
       }
     });
   }
-
   if (type === 'clear') {
     button.classList.add('outline');
     button.addEventListener('click', (e) => {
@@ -225,69 +136,8 @@ function createButton({ type, label }, thankYou) {
       clearForm(form);
     });
   }
-
   return button;
 }
-
-function setupForm() {
-  const form = document.querySelector('#your-form-id');
-
-  // Create and append "Get Code" button
-  const getCodeButton = createButton({ type: 'get-code', label: 'Get Code' }, form);
-  form.appendChild(getCodeButton);
-
-  // Create and append "Verify Code" button
-  const verifyCodeButton = createButton({ type: 'verify-code', label: 'Verify Code' }, form);
-  form.appendChild(verifyCodeButton);
-
-  // Add the submission button functionality
-  const submitButton = form.querySelector('button[type="submit"]');
-  if (submitButton) {
-    submitButton.addEventListener('click', async (event) => {
-      event.preventDefault();
-      await submitForm(form);
-    });
-  }
-}
-
-// Initialize the form setup
-document.addEventListener('DOMContentLoaded', setupForm);
-
-
-// function createButton({ type, label }, thankYou) {
-//   const button = createTag('button', { class: 'button' }, label);
-//   if (type === 'submit') {
-//     button.addEventListener('click', async (event) => {
-//       const form = button.closest('form');
-//       if (form.checkValidity()) {
-//         event.preventDefault();
-//         button.setAttribute('disabled', '');
-//         const submission = await submitForm(form);
-//         button.removeAttribute('disabled');
-//         if (!submission) return;
-//         clearForm(form);
-//         const handleThankYou = thankYou.querySelector('a') ? thankYou.querySelector('a').href : thankYou.innerHTML;
-//         if (!thankYou.innerHTML.includes('href')) {
-//           const thanksText = createTag('h4', { class: 'thank-you' }, handleThankYou);
-//           form.append(thanksText);
-//           setTimeout(() => thanksText.remove(), 2000);
-//           /* c8 ignore next 3 */
-//         } else {
-//           window.location.href = handleThankYou;
-//         }
-//       }
-//     });
-//   }
-//   if (type === 'clear') {
-//     button.classList.add('outline');
-//     button.addEventListener('click', (e) => {
-//       e.preventDefault();
-//       const form = button.closest('form');
-//       clearForm(form);
-//     });
-//   }
-//   return button;
-// }
 
 function createHeading({ label }, el) {
   return createTag(el, {}, label);
