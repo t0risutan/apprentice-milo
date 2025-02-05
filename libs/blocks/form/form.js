@@ -74,6 +74,58 @@ async function submitForm(form) {
   }
 }
 
+function setupForm() {
+  const form = document.querySelector('#your-form-id'); // Update with your actual form ID
+
+  // Create and append "Get Code" button
+  const getCodeButton = createButton({ type: 'get-code', label: 'Get Code' });
+  form.querySelector('#code').after(getCodeButton); // Place after the "Code" input field
+
+  // Create and append "Verify Code" button
+  const verifyCodeButton = createButton({ type: 'verify-code', label: 'Verify Code' });
+  form.querySelector('#verificationCode').after(verifyCodeButton); // Place after the "Verify Code" input field
+
+  // Enable the "Weiter" button only after verification
+  const submitButton = form.querySelector('button[type="submit"]');
+  submitButton.setAttribute('disabled', ''); // Initially disable the submit button
+}
+
+
+async function requestVerificationCode(email) {
+  try {
+    const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev/send-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error sending verification code:', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+
+// function loadTurnstile() {
+//   const script = document.createElement('script');
+//   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+//   script.async = true;
+//   script.onload = () => {
+//     turnstile.render('#captcha-container', {
+//       sitekey: '0x4AAAAAAA6uqp_nGspHkBq3',
+//       callback: (token) => {
+//         console.log('CAPTCHA Token received:', token);
+//         document.querySelector('#cf-turnstile-response').value = token;
+//       }
+//     });
+//   };
+//   document.body.appendChild(script);
+// }
+
+// document.addEventListener('DOMContentLoaded', loadTurnstile);
+
+
 function clearForm(form) {
   [...form.elements].forEach((fe) => {
     if (fe.type.match(/(?:checkbox|radio)/)) {
@@ -84,8 +136,8 @@ function clearForm(form) {
   });
 }
 
-function createButton({ type, label }) {
-  const button = createTag('button', { class: 'button', type }, label);
+function createButton({ type, label }, thankYou) {
+  const button = createTag('button', { class: 'button', type: 'button' }, label);
 
   if (type === 'get-code') {
     button.addEventListener('click', async (event) => {
@@ -98,16 +150,11 @@ function createButton({ type, label }) {
         return;
       }
 
-      button.setAttribute('disabled', '');
-      const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev/verify-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.value }),
-      });
-      button.removeAttribute('disabled');
+      button.setAttribute('disabled', ''); // Disable the button while the code is being sent
+      const response = await requestVerificationCode(emailInput.value);
+      button.removeAttribute('disabled'); // Re-enable the button
 
-      const result = await response.json();
-      if (result.status === 'success') {
+      if (response.status === 'success') {
         alert("Verification code sent to your email.");
       } else {
         alert("Failed to send verification code. Please try again.");
@@ -123,24 +170,45 @@ function createButton({ type, label }) {
       const codeInput = form.querySelector('#verificationCode');
 
       if (!emailInput.value || !codeInput.value) {
-        alert("Please enter your email and the verification code.");
+        alert("Please enter both your email and the verification code.");
         return;
       }
 
-      button.setAttribute('disabled', '');
-      const response = await fetch('https://submission-worker.main--lehre-site--berufsbildung-basel.workers.dev/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.value, code: codeInput.value }),
-      });
-      button.removeAttribute('disabled');
+      button.setAttribute('disabled', ''); // Disable the button while verification is being processed
+      const verified = await verifyCode(emailInput.value, codeInput.value);
+      button.removeAttribute('disabled'); // Re-enable the button
 
-      const result = await response.json();
-      if (result.status === 'success') {
-        alert("Email verified! You can now submit the form.");
-        form.querySelector('[type="submit"]').removeAttribute('disabled');
+      if (verified) {
+        alert("Email verified successfully! You can now submit the form.");
+        form.querySelector('[type="submit"]').removeAttribute('disabled'); // Enable the "Weiter" button
       } else {
         alert("Invalid verification code. Please try again.");
+      }
+    });
+  }
+
+  if (type === 'submit') {
+    button.addEventListener('click', async (event) => {
+      const form = button.closest('form');
+
+      if (form.checkValidity()) {
+        event.preventDefault();
+        button.setAttribute('disabled', ''); // Disable the button to prevent multiple submissions
+        const submission = await submitForm(form); // Call the submitForm function
+        button.removeAttribute('disabled'); // Re-enable the button
+
+        if (!submission) return; // Exit early if submission fails
+        clearForm(form);
+
+        // Handle the "Thank You" logic
+        const handleThankYou = thankYou.querySelector('a') ? thankYou.querySelector('a').href : thankYou.innerHTML;
+        if (!thankYou.innerHTML.includes('href')) {
+          const thanksText = createTag('h4', { class: 'thank-you' }, handleThankYou);
+          form.append(thanksText);
+          setTimeout(() => thanksText.remove(), 2000);
+        } else {
+          window.location.href = handleThankYou;
+        }
       }
     });
   }
@@ -148,28 +216,6 @@ function createButton({ type, label }) {
   return button;
 }
 
-function createInput({ type, field, placeholder }) {
-  return createTag('input', { type, id: field, placeholder });
-}
-
-function setupForm() {
-  const form = document.querySelector('form');
-
-  // Add Get Code Button
-  const getCodeButton = createButton({ type: 'get-code', label: 'Get Code' });
-  form.appendChild(getCodeButton);
-
-  // Add Verify Code Button
-  const verifyCodeButton = createButton({ type: 'verify-code', label: 'Verify Code' });
-  form.appendChild(verifyCodeButton);
-
-  // Disable Submit Button by default
-  const submitButton = form.querySelector('[type="submit"]');
-  submitButton.setAttribute('disabled', '');
-}
-
-// Initialize form setup
-document.addEventListener('DOMContentLoaded', setupForm);
 
 function createHeading({ label }, el) {
   return createTag(el, {}, label);
