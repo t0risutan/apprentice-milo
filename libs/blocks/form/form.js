@@ -41,6 +41,8 @@ function constructPayload(form) {
   return payload;
 }
 
+// Make sure to change the submit form function to also include the email verification of the user
+
 async function submitForm(form) {
   const payload = constructPayload(form); 
   payload.timestamp = new Date().toISOString(); 
@@ -75,25 +77,6 @@ async function submitForm(form) {
 }
 
 
-// function loadTurnstile() {
-//   const script = document.createElement('script');
-//   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-//   script.async = true;
-//   script.onload = () => {
-//     turnstile.render('#captcha-container', {
-//       sitekey: '0x4AAAAAAA6uqp_nGspHkBq3',
-//       callback: (token) => {
-//         console.log('CAPTCHA Token received:', token);
-//         document.querySelector('#cf-turnstile-response').value = token;
-//       }
-//     });
-//   };
-//   document.body.appendChild(script);
-// }
-
-// document.addEventListener('DOMContentLoaded', loadTurnstile);
-
-
 function clearForm(form) {
   [...form.elements].forEach((fe) => {
     if (fe.type.match(/(?:checkbox|radio)/)) {
@@ -103,7 +86,6 @@ function clearForm(form) {
     }
   });
 }
-
 function createButton({ type, label }, thankYou) {
   const button = createTag('button', { class: 'button' }, label);
   if (type === 'submit') {
@@ -128,6 +110,7 @@ function createButton({ type, label }, thankYou) {
       }
     });
   }
+
   if (type === 'clear') {
     button.classList.add('outline');
     button.addEventListener('click', (e) => {
@@ -138,6 +121,18 @@ function createButton({ type, label }, thankYou) {
   }
   return button;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const buttons = Array.from(document.querySelectorAll("button"));
+
+  const getCodeButton = buttons.find((btn) =>
+    btn.textContent.trim().toLowerCase().includes("get code")
+  );
+
+  const verifyCodeButton = buttons.find((btn) =>
+  btn.textContent.trim().toLowerCase().includes("verify code")
+  );
+})
 
 function createHeading({ label }, el) {
   return createTag(el, {}, label);
